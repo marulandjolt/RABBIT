@@ -1,1 +1,42 @@
+version: '3.8'
 
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq_broker
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  producer:
+    build: ./producer
+    container_name: api_producer
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+      - QUEUE_NAME=cola_taller
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  consumer:
+    build: ./consumer
+    container_name: service_consumer
+    environment:
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+      - QUEUE_NAME=cola_taller
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+volumes:
+  rabbitmq_data:
